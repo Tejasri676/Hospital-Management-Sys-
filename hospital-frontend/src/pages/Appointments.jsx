@@ -181,14 +181,22 @@ export default function Appointments() {
   const location = useLocation();
 
   const loadData = async () => {
-    const [appRes, patRes, docRes] = await Promise.all([
-      mockApi.getAppointments(),
-      mockApi.getPatients(),
-      mockApi.getDoctors()
-    ]);
-    setAppointments(appRes);
-    setPatients(patRes);
-    setDoctors(docRes);
+    try {
+      const [appRes, patRes, docRes] = await Promise.all([
+        mockApi.getAppointments(),
+        mockApi.getPatients(),
+        mockApi.getDoctors()
+      ]);
+      setAppointments(appRes);
+      setPatients(patRes);
+      setDoctors(docRes);
+    } catch (error) {
+      toast.error(error.message || 'Failed to load appointments data');
+      setAppointments([]);
+      setPatients([]);
+      setDoctors([]);
+      return;
+    }
     
     // Referral pre-fill logic from Referrals page
     if (location.state?.prefill) {
@@ -222,11 +230,11 @@ export default function Appointments() {
   const columns = [
     { header: 'ID', render: (r) => <span className="text-gray-400 font-mono text-xs">APT-{r.id}</span> },
     { header: 'Patient', render: (r) => {
-        const p = patients.find(p=>p.id === r.patientId); 
+        const p = patients.find(p => String(p.id) === String(r.patientId));
         return <span className="font-semibold text-gray-900">{p ? p.name : 'Unknown User'}</span>; 
     }},
     { header: 'Physician', render: (r) => {
-        const d = doctors.find(d=>d.id === r.doctorId);
+        const d = doctors.find(d => String(d.id) === String(r.doctorId));
         return <span className="text-gray-600">Dr. {d ? d.name : 'Unassigned'}</span>;
     }},
     { header: 'Schedule', render: (r) => (

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, FileText, CheckCircle, DollarSign } from 'lucide-react';
 import { mockApi } from '../../services/mockApi';
-import StatCard from '../common/StatCard';
+import StatCard from '../common/statcard';
 
 export default function PharmacyDashboard() {
   const [stats, setStats] = useState({
@@ -13,38 +13,41 @@ export default function PharmacyDashboard() {
 
   useEffect(() => {
     const loadStats = async () => {
-      const [meds, pres] = await Promise.all([
+      const [meds, pres] = await Promise.allSettled([
         mockApi.getMedicines(),
         mockApi.getPrescriptions()
       ]);
 
+      const medicines = meds.status === 'fulfilled' ? meds.value : [];
+      const prescriptions = pres.status === 'fulfilled' ? pres.value : [];
+
       const today = new Date().toISOString().split('T')[0];
       
-      const medicinePrices = meds.reduce((acc, curr) => {
-        acc[curr.id] = Number(curr.price || 0);
+      const medicinePrices = medicines.reduce((acc, current) => {
+        acc[current.id] = Number(current.price || 0);
         return acc;
       }, {});
 
       let dispensedToday = 0;
       let pharmacyRevenue = 0;
 
-      pres.forEach(p => {
-        const isToday = p.date && p.date.startsWith(today);
-        const presMeds = p.medicines || [];
+      prescriptions.forEach(prescription => {
+        const isToday = prescription.date && prescription.date.startsWith(today);
+        const presMeds = prescription.medicines || [];
         
-        presMeds.forEach(m => {
-          if (m.purchased) {
+        presMeds.forEach(medicine => {
+          if (medicine.purchased) {
             if (isToday) {
-              dispensedToday += Number(m.quantity || 0);
+              dispensedToday += Number(medicine.quantity || 0);
             }
-            pharmacyRevenue += (Number(m.quantity || 0) * (medicinePrices[m.medicineId] || 0));
+            pharmacyRevenue += (Number(medicine.quantity || 0) * (medicinePrices[medicine.medicineId] || 0));
           }
         });
       });
 
       setStats({
-        lowStock: meds.filter(m => Number(m.stock || 0) < 20).length,
-        prescriptionsToday: pres.filter(p => p.date && p.date.startsWith(today)).length,
+        lowStock: medicines.filter(medicine => Number(medicine.stock || 0) < 20).length,
+        prescriptionsToday: prescriptions.filter(prescription => prescription.date && prescription.date.startsWith(today)).length,
         dispensedToday,
         pharmacyRevenue
       });

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Calendar, Clock, Bed, LogOut } from 'lucide-react';
 import { mockApi } from '../../services/mockApi';
-import StatCard from '../common/StatCard';
+import StatCard from '../common/statcard';
 
 export default function ReceptionistDashboard() {
   const [stats, setStats] = useState({
@@ -14,19 +14,22 @@ export default function ReceptionistDashboard() {
 
   useEffect(() => {
     const loadStats = async () => {
-      const [app, adm] = await Promise.all([
+      const [app, adm] = await Promise.allSettled([
         mockApi.getAppointments(),
         mockApi.getAdmissions()
       ]);
 
+      const appointments = app.status === 'fulfilled' ? app.value : [];
+      const admissions = adm.status === 'fulfilled' ? adm.value : [];
+
       const today = new Date().toISOString().split('T')[0];
 
       setStats({
-        patientsRegisteredToday: app.filter(a => a.date && a.date.startsWith(today) && !a.is_followup).length,
-        appointmentsScheduledToday: app.filter(a => a.date && a.date.startsWith(today)).length,
-        upcomingAppointments: app.filter(a => a.date && a.date >= today).length,
-        activeAdmissions: adm.filter(a => a.status === 'Admitted').length,
-        dischargesToday: adm.filter(a => a.dateDischarged && a.dateDischarged.startsWith(today)).length
+        patientsRegisteredToday: appointments.filter(item => item.date && item.date.startsWith(today) && !item.is_followup).length,
+        appointmentsScheduledToday: appointments.filter(item => item.date && item.date.startsWith(today)).length,
+        upcomingAppointments: appointments.filter(item => item.date && item.date >= today).length,
+        activeAdmissions: admissions.filter(item => item.status === 'Admitted').length,
+        dischargesToday: admissions.filter(item => item.dateDischarged && item.dateDischarged.startsWith(today)).length
       });
     };
 

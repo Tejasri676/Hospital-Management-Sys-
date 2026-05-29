@@ -4,7 +4,7 @@ import Table from '../components/common/Table';
 import Form from '../components/common/Form';
 import { useAuth } from '../hooks/useAuth';
 import { ROLES } from '../utils/rolePermissions';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function Patients() {
@@ -15,8 +15,9 @@ export default function Patients() {
   const [editingData, setEditingData] = useState(null);
   
   const { user } = useAuth();
-  // Role verification mapping - only Receptionist can modify patients, Admin can only view
+  // Receptionist can add/edit; Admin can delete.
   const canModify = [ROLES.RECEPTIONIST].includes(user?.role);
+  const canDelete = user?.role === ROLES.ADMIN;
 
   const loadData = async () => {
     const data = await mockApi.getPatients();
@@ -38,6 +39,18 @@ export default function Patients() {
     toast.success('Patient updated successfully');
     await loadData();
     setView('table');
+  };
+
+  const handleDelete = async (row) => {
+    if (!window.confirm(`Delete patient "${row.name}"?`)) return;
+
+    try {
+      await mockApi.removePatient(row.id);
+      toast.success('Patient deleted successfully');
+      await loadData();
+    } catch (error) {
+      toast.error(error.message || 'Failed to delete patient');
+    }
   };
 
   const formFields = [
@@ -86,10 +99,23 @@ export default function Patients() {
           data={filtered} 
           searchQuery={search} 
           onSearchChange={setSearch}
-          actions={canModify ? (row) => (
-            <button onClick={() => { setEditingData(row); setView('form'); }} className="bg-white rounded border border-gray-200 px-3 py-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 font-medium text-xs transition">
-              Modify
-            </button>
+          actions={(canModify || canDelete) ? (row) => (
+            <div className="flex items-center justify-end gap-2">
+              {canModify && (
+                <button onClick={() => { setEditingData(row); setView('form'); }} className="bg-white rounded border border-gray-200 px-3 py-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 font-medium text-xs transition">
+                  Modify
+                </button>
+              )}
+              {canDelete && (
+                <button
+                  onClick={() => handleDelete(row)}
+                  className="bg-white rounded border border-red-200 px-3 py-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 font-medium text-xs transition inline-flex items-center gap-1"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete
+                </button>
+              )}
+            </div>
           ) : undefined}
         />
       )}

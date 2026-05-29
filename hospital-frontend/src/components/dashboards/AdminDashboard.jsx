@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, UserPlus, Bed, Calendar, FlaskConical, FileText, DollarSign, Activity } from 'lucide-react';
 import { mockApi } from '../../services/mockApi';
-import StatCard from '../common/StatCard';
+import StatCard from '../common/statcard';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -18,7 +18,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const loadStats = async () => {
-      const [p, d, adm, app, lab, ref, meds, pres] = await Promise.all([
+      const [p, d, adm, app, lab, ref, meds, pres] = await Promise.allSettled([
         mockApi.getPatients(),
         mockApi.getDoctors(),
         mockApi.getAdmissions(),
@@ -29,29 +29,38 @@ export default function AdminDashboard() {
         mockApi.getPrescriptions()
       ]);
 
-      const appointmentRevenue = app.reduce((sum, a) => sum + Number(a.fee || 0), 0);
-      const admissionRevenue = adm.reduce((sum, a) => sum + Number(a.totalCost || 0), 0);
+      const patients = p.status === 'fulfilled' ? p.value : [];
+      const doctors = d.status === 'fulfilled' ? d.value : [];
+      const admissions = adm.status === 'fulfilled' ? adm.value : [];
+      const appointments = app.status === 'fulfilled' ? app.value : [];
+      const labTests = lab.status === 'fulfilled' ? lab.value : [];
+      const referrals = ref.status === 'fulfilled' ? ref.value : [];
+      const medicines = meds.status === 'fulfilled' ? meds.value : [];
+      const prescriptions = pres.status === 'fulfilled' ? pres.value : [];
+
+      const appointmentRevenue = appointments.reduce((sum, item) => sum + Number(item.fee || item.consultation_fee || 0), 0);
+      const admissionRevenue = admissions.reduce((sum, item) => sum + Number(item.totalCost || 0), 0);
       
-      const medicinePrices = meds.reduce((acc, curr) => {
-        acc[curr.id] = Number(curr.price || 0);
+      const medicinePrices = medicines.reduce((acc, current) => {
+        acc[current.id] = Number(current.price || 0);
         return acc;
       }, {});
       
-      const pharmacyRevenue = pres.reduce((sum, p) => {
-        const presMeds = p.medicines || [];
-        const presSum = presMeds.filter(m => m.purchased).reduce((s, m) => {
-          return s + (Number(m.quantity || 0) * (medicinePrices[m.medicineId] || 0));
+      const pharmacyRevenue = prescriptions.reduce((sum, prescription) => {
+        const presMeds = prescription.medicines || [];
+        const presSum = presMeds.filter(medicine => medicine.purchased).reduce((subTotal, medicine) => {
+          return subTotal + (Number(medicine.quantity || 0) * (medicinePrices[medicine.medicineId] || 0));
         }, 0);
         return sum + presSum;
       }, 0);
 
       setStats({
-        patients: p.length,
-        doctors: d.length,
-        activeAdmissions: adm.filter(a => a.status === 'Admitted').length,
-        queuedAppointments: app.filter(a => a.status === 'Scheduled').length,
-        pendingLabResults: lab.filter(l => l.status === 'Pending').length,
-        outgoingReferrals: ref.length,
+        patients: patients.length,
+        doctors: doctors.length,
+        activeAdmissions: admissions.filter(item => item.status === 'Admitted').length,
+        queuedAppointments: appointments.filter(item => item.status === 'Scheduled').length,
+        pendingLabResults: labTests.filter(item => item.status === 'Pending').length,
+        outgoingReferrals: referrals.length,
         appointmentRevenue,
         admissionRevenue,
         pharmacyRevenue

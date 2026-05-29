@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import {
-  LayoutDashboard, Users, UserRound, Calendar, Pill,
+import { 
+  LayoutDashboard, Users, UserRound, Calendar, Pill, 
   FlaskConical, Package, Bed, Share, UserCog
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
@@ -22,14 +22,14 @@ const LINKS = [
 
 export default function Sidebar() {
   const { user } = useAuth();
-
+  
   // Filter sidebar routes using RBAC schema mapping
   const authorizedLinks = LINKS.filter(link => hasAccess(user?.role, link.path));
 
   return (
     <div className="w-64 bg-gray-900 h-screen text-gray-300 flex flex-col flex-shrink-0 transition-all">
       <div className="h-16 flex items-center px-6 font-bold text-white text-xl border-b border-gray-800">
-        Priyamvada Healthcare
+        MediCare Sys
       </div>
       <div className="flex-1 overflow-y-auto py-4">
         <nav className="space-y-1">
@@ -40,9 +40,10 @@ export default function Sidebar() {
                 key={link.name}
                 to={link.path}
                 className={({ isActive }) =>
-                  `flex items-center px-6 py-3 text-sm font-medium transition-colors ${isActive
-                    ? 'bg-blue-600 text-white shadow-lg'
-                    : 'hover:bg-gray-800 hover:text-white'
+                  `flex items-center px-6 py-3 text-sm font-medium transition-colors ${
+                    isActive 
+                      ? 'bg-blue-600 text-white shadow-lg' 
+                      : 'hover:bg-gray-800 hover:text-white'
                   }`
                 }
               >
@@ -56,3 +57,4 @@ export default function Sidebar() {
     </div>
   );
 }
+

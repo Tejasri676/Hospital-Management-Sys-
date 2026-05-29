@@ -15,7 +15,7 @@ export default function Navbar() {
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 flex-shrink-0">
       <h2 className="text-xl font-semibold text-gray-800">
-        Hospital Information Dashboard
+        Hospital Management Dashboard
       </h2>
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -25,7 +25,7 @@ export default function Navbar() {
             {user?.role || 'Admin'}
           </span>
         </div>
-        <button
+        <button 
           onClick={handleLogout}
           className="p-2 text-gray-400 hover:text-red-500 transition-colors"
           title="Logout"

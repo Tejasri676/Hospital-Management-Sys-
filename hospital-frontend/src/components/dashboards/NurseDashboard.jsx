@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bed, Activity, FlaskConical, FileText, CheckCircle, LogOut } from 'lucide-react';
 import { mockApi } from '../../services/mockApi';
-import StatCard from '../common/StatCard';
+import StatCard from '../common/statcard';
 
 export default function NurseDashboard() {
   const [stats, setStats] = useState({
@@ -15,21 +15,25 @@ export default function NurseDashboard() {
 
   useEffect(() => {
     const loadStats = async () => {
-      const [adm, lab, ref] = await Promise.all([
+      const [adm, lab, ref] = await Promise.allSettled([
         mockApi.getAdmissions(),
         mockApi.getLabTests(),
         mockApi.getReferrals()
       ]);
 
-      const activeAdmissions = adm.filter(a => a.status === 'Admitted').length;
+      const admissions = adm.status === 'fulfilled' ? adm.value : [];
+      const labTests = lab.status === 'fulfilled' ? lab.value : [];
+      const referrals = ref.status === 'fulfilled' ? ref.value : [];
+
+      const activeAdmissions = admissions.filter(a => a.status === 'Admitted').length;
 
       setStats({
         currentlyAdmitted: activeAdmissions,
         bedsOccupied: activeAdmissions,
-        pendingLabTests: lab.filter(l => l.status === 'Pending').length,
-        referralsCreated: ref.length,
-        recentAdmissions: adm.length,
-        pendingDischarges: adm.filter(a => a.status === 'Admitted' && a.dateDischarged).length
+        pendingLabTests: labTests.filter(item => item.status === 'Pending').length,
+        referralsCreated: referrals.length,
+        recentAdmissions: admissions.length,
+        pendingDischarges: admissions.filter(item => item.status === 'Admitted' && item.dateDischarged).length
       });
     };
 

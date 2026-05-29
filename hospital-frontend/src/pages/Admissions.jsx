@@ -10,6 +10,10 @@ import toast from 'react-hot-toast';
 function AdmissionForm({ onSubmit, onCancel, patients, availableBeds, initialData }) {
   const [patientId, setPatientId] = useState(initialData?.patientId || '');
   const [bedId, setBedId] = useState('');
+  const [expectedDischarge, setExpectedDischarge] = useState(() => {
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    return tomorrow.toISOString().slice(0, 16);
+  });
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -20,8 +24,8 @@ function AdmissionForm({ onSubmit, onCancel, patients, availableBeds, initialDat
       wardType: bed.wardType,
       bedNumber: bed.bedNumber,
       status: 'Admitted',
-      dateAdmitted: new Date().toISOString().split('T')[0],
-      dateDischarged: null,
+      dateAdmitted: new Date().toISOString(),
+      dateDischarged: expectedDischarge,
       totalCost: 0
     };
     onSubmit(payload);
@@ -67,6 +71,16 @@ function AdmissionForm({ onSubmit, onCancel, patients, availableBeds, initialDat
               <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">Warning: No beds available in any ward</p>
             )}
           </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-800 mb-1.5">Expected Discharge Time</label>
+            <input
+              type="datetime-local"
+              required
+              value={expectedDischarge}
+              onChange={(e) => setExpectedDischarge(e.target.value)}
+              className="w-full border-gray-300 rounded-lg text-sm p-2.5 bg-gray-50 focus:ring-blue-500"
+            />
+          </div>
         </div>
         <div className="flex justify-end gap-3 pt-4">
           <button type="button" onClick={onCancel} className="px-5 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-100 transition">Cancel</button>
@@ -85,6 +99,7 @@ export default function Admissions() {
   const [search, setSearch] = useState('');
   const [dischargingId, setDischargingId] = useState(null);
   const [dischargeDate, setDischargeDate] = useState(new Date().toISOString().split('T')[0]);
+  const [bedsToAdd, setBedsToAdd] = useState({});
 
   const { user } = useAuth();
   const location = useLocation();
@@ -125,6 +140,34 @@ export default function Admissions() {
   };
 
   const availableBeds = beds.filter(b => b.isAvailable);
+  const occupiedBeds = beds.filter(b => !b.isAvailable);
+  const wardSummaries = Object.values(beds.reduce((acc, bed) => {
+    const key = bed.wardId || bed.wardType;
+    if (!acc[key]) {
+      acc[key] = {
+        wardId: bed.wardId,
+        wardName: bed.wardName || bed.wardType,
+        wardType: bed.wardType,
+        totalBeds: bed.totalBeds,
+        occupiedBeds: bed.occupiedBeds,
+        availableBeds: bed.availableBeds,
+      };
+    }
+    return acc;
+  }, {}));
+
+  const handleAddBeds = async (wardId) => {
+    const addBeds = Number(bedsToAdd[wardId] || 0);
+    if (!addBeds || addBeds < 1) {
+      toast.error('Enter number of beds to add');
+      return;
+    }
+
+    await mockApi.increaseWardCapacity(wardId, addBeds);
+    toast.success('Ward capacity increased');
+    setBedsToAdd(prev => ({ ...prev, [wardId]: '' }));
+    await loadData();
+  };
 
   const columns = [
     { header: 'ID', render: (r) => <span className="text-gray-400 font-mono text-xs">ADM-{r.id}</span> },
@@ -141,7 +184,11 @@ export default function Admissions() {
     { header: 'Timeline', render: (r) => (
       <div className="text-[11px] font-medium">
         <p className="text-blue-600">IN: {r.dateAdmitted}</p>
-        {r.dateDischarged && <p className="text-green-600">OUT: {r.dateDischarged}</p>}
+        {r.dateDischarged && (
+          <p className={r.status === 'Discharged' ? 'text-green-600' : 'text-orange-600'}>
+            {r.status === 'Discharged' ? 'OUT' : 'EXPECTED'}: {r.dateDischarged}
+          </p>
+        )}
       </div>
     )},
     { header: 'Billing', render: (r) => (
@@ -202,7 +249,65 @@ export default function Admissions() {
             </div>
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
          </div>
+         <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between border-l-4 border-l-blue-500">
+            <div>
+               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Occupied</p>
+               <p className="text-xl font-bold text-blue-600">{occupiedBeds.length}</p>
+            </div>
+            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+         </div>
       </div>
+
+      {user?.role === ROLES.ADMIN && wardSummaries.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {wardSummaries.map((ward) => (
+              <div key={ward.wardId || ward.wardType} className="border border-gray-100 rounded-xl p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">{ward.wardName}</p>
+                    <p className="text-xs text-gray-500">{ward.wardType}</p>
+                  </div>
+                  <span className="text-[10px] font-bold uppercase text-green-700 bg-green-50 border border-green-100 rounded px-2 py-1">
+                    {ward.availableBeds} free
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 my-4 text-center">
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase">Total</p>
+                    <p className="font-bold text-gray-900">{ward.totalBeds}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase">Used</p>
+                    <p className="font-bold text-blue-600">{ward.occupiedBeds}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase">Open</p>
+                    <p className="font-bold text-green-600">{ward.availableBeds}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    value={bedsToAdd[ward.wardId] || ''}
+                    onChange={(e) => setBedsToAdd(prev => ({ ...prev, [ward.wardId]: e.target.value }))}
+                    placeholder="Beds"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleAddBeds(ward.wardId)}
+                    className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {dischargingId && (
         <div className="bg-red-50 border border-red-200 p-6 rounded-2xl animate-in fade-in slide-in-from-top-4">

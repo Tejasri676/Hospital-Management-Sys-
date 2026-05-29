@@ -1,31 +1,43 @@
 import React, { useState, useEffect } from 'react';
-import { getPatients, getDoctors, createAppointment } from '../services/api';
+import { mockApi } from '../services/mockApi';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { CalendarHeart } from 'lucide-react';
 
 const BookAppointment = () => {
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
+  const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
-    patient_id: '',
-    doctor_id: '',
-    date: ''
+    patientId: '',
+    doctorId: '',
+    date: '',
+    time: '',
+    duration: 30,
+    reason: '',
+    status: 'Scheduled',
+    is_followup: false,
+    fee: 0
   });
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [pRes, dRes] = await Promise.all([getPatients(), getDoctors()]);
-        setPatients(pRes.data);
-        setDoctors(dRes.data);
+        const [patients, doctors] = await Promise.all([
+          mockApi.getPatients(),
+          mockApi.getDoctors()
+        ]);
+        setPatients(patients);
+        setDoctors(doctors);
         
-        if (pRes.data.length > 0 && dRes.data.length > 0) {
+        if (patients.length > 0 && doctors.length > 0) {
             setFormData(prev => ({
                 ...prev,
-                patient_id: pRes.data[0].patient_id,
-                doctor_id: dRes.data[0].doctor_id
+                patientId: patients[0].id,
+                doctorId: doctors[0].id,
+                fee: doctors[0].consultation_fee || 0
             }));
         }
       } catch (error) {
@@ -35,19 +47,47 @@ const BookAppointment = () => {
     fetchData();
   }, []);
 
+  const handleDoctorChange = (doctorId) => {
+    const doctor = doctors.find(d => d.id === parseInt(doctorId));
+    setFormData(prev => ({
+      ...prev,
+      doctorId,
+      fee: doctor ? doctor.consultation_fee : 0
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!formData.date || !formData.time) {
+      toast.error('Date and time are required');
+      return;
+    }
+
+    if (!formData.reason.trim()) {
+      toast.error('Reason for visit is required');
+      return;
+    }
+    
     setIsLoading(true);
     try {
-      await createAppointment({
-         patient_id: parseInt(formData.patient_id),
-         doctor_id: parseInt(formData.doctor_id),
-         date: formData.date
-      });
+      await mockApi.saveAppointment(formData);
       toast.success('Appointment booked successfully!');
-      setFormData(prev => ({ ...prev, date: '' }));
+      // Reset form
+      setFormData(prev => ({
+        ...prev,
+        date: '',
+        time: '',
+        reason: '',
+        status: 'Scheduled',
+        is_followup: false
+      }));
+      // Navigate to appointments page after 1 second to show the new appointment
+      setTimeout(() => {
+        navigate('/appointments');
+      }, 1000);
     } catch (error) {
-      toast.error('Failed to book appointment');
+      toast.error('Failed to book appointment: ' + error.message);
     } finally {
       setIsLoading(false);
     }
@@ -72,12 +112,12 @@ const BookAppointment = () => {
             <select 
               required
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition-all appearance-none bg-white"
-              value={formData.patient_id}
-              onChange={e => setFormData({...formData, patient_id: e.target.value})}
+              value={formData.patientId}
+              onChange={e => setFormData({...formData, patientId: e.target.value})}
             >
               {patients.length === 0 && <option value="">No patients available</option>}
               {patients.map(p => (
-                <option key={p.patient_id} value={p.patient_id}>{p.name} (ID: {p.patient_id})</option>
+                <option key={p.id} value={p.id}>{p.name} (ID: {p.id})</option>
               ))}
             </select>
           </div>
@@ -87,25 +127,54 @@ const BookAppointment = () => {
             <select 
               required
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition-all appearance-none bg-white"
-              value={formData.doctor_id}
-              onChange={e => setFormData({...formData, doctor_id: e.target.value})}
+              value={formData.doctorId}
+              onChange={e => handleDoctorChange(parseInt(e.target.value))}
             >
               {doctors.length === 0 && <option value="">No doctors available</option>}
               {doctors.map(d => (
-                <option key={d.doctor_id} value={d.doctor_id}>Dr. {d.name} ({d.specialization})</option>
+                <option key={d.id} value={d.id}>Dr. {d.name} ({d.specialization})</option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Date & Time</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
             <input 
-              type="datetime-local" 
+              type="date" 
               required
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition-all"
               value={formData.date}
               onChange={e => setFormData({...formData, date: e.target.value})}
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
+            <input 
+              type="time" 
+              required
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition-all"
+              value={formData.time}
+              onChange={e => setFormData({...formData, time: e.target.value})}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Reason for Visit</label>
+            <input 
+              type="text"
+              required
+              placeholder="Chief complaint or procedure info..."
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition-all"
+              value={formData.reason}
+              onChange={e => setFormData({...formData, reason: e.target.value})}
+            />
+          </div>
+
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <p className="text-sm font-semibold text-gray-700">
+              Consultation Fee: <span className="text-violet-600">${formData.fee}</span>
+            </p>
           </div>
 
           <button 

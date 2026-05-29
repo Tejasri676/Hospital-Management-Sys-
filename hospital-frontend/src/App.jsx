@@ -1,22 +1,22 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
-import { AuthProvider } from './context/AuthContext';
+import React from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
+import { AuthProvider } from "./context/AuthContext";
 
-import Layout from './components/Layout';
-import ProtectedRoute from './components/ProtectedRoute';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Patients from './pages/Patients';
-import Doctors from './pages/Doctors';
-import Appointments from './pages/Appointments';
-import Prescriptions from './pages/Prescriptions';
-import LabTests from './pages/LabTests';
-import Medicines from './pages/Medicines';
-import Admissions from './pages/Admissions';
-import Referrals from './pages/Referrals';
-import Staff from './pages/Staff';
-import PatientHistory from './pages/PatientHistory';
+import Layout from "./components/Layout";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import Patients from "./pages/Patients";
+import Doctors from "./pages/Doctors";
+import Appointments from "./pages/Appointments";
+import Prescriptions from "./pages/Prescriptions";
+import LabTests from "./pages/LabTests";
+import Medicines from "./pages/Medicines";
+import Admissions from "./pages/Admissions";
+import Referrals from "./pages/Referrals";
+import Staff from "./pages/Staff";
+import PatientHistory from "./pages/PatientHistory";
 
 export default function App() {
   return (
@@ -49,3 +49,5 @@ export default function App() {
     </AuthProvider>
   );
 }
+
+

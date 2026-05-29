@@ -98,9 +98,39 @@ exports.updatePatient = async (req, res) => {
     }
 };
 
+exports.deletePatient = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const patientId = Number(id);
+
+        if (!patientId) {
+            return res.status(400).json({ error: 'Valid patient ID is required' });
+        }
+
+        const existing = await executeQuery("SELECT patient_id FROM PATIENT WHERE patient_id = :id", { id: patientId });
+        if (existing.rows.length === 0) {
+            return res.status(404).json({ error: 'Patient not found' });
+        }
+
+        await executeQuery("DELETE FROM PATIENT WHERE patient_id = :id", { id: patientId });
+        res.json({ message: 'Patient deleted successfully' });
+    } catch (err) {
+        if (err && err.errorNum === 2292) {
+            return res.status(409).json({
+                error: 'Cannot delete patient because related records exist (appointments, prescriptions, labs, or admissions).'
+            });
+        }
+        console.error("❌ Delete Error:", err.message);
+        res.status(500).json({ error: err.message });
+    }
+};
+
+
+
 module.exports = {
     createPatient: exports.createPatient,
     getPatients: exports.getPatients,
     getPatientDetails: exports.getPatientDetails,
-    updatePatient: exports.updatePatient
+    updatePatient: exports.updatePatient,
+    deletePatient: exports.deletePatient
 };

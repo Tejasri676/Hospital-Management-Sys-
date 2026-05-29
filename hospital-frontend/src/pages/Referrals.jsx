@@ -87,12 +87,18 @@ export default function Referrals() {
   const isReceptionistOrNurse = user?.role === ROLES.RECEPTIONIST || user?.role === ROLES.NURSE || user?.role === ROLES.ADMIN;
 
   const loadData = async () => {
-    const [refRes, patRes] = await Promise.all([
-      mockApi.getReferrals(),
-      mockApi.getPatients()
-    ]);
-    setReferrals(refRes);
-    setPatients(patRes);
+    try {
+      const [refRes, patRes] = await Promise.all([
+        mockApi.getReferrals(),
+        mockApi.getPatients()
+      ]);
+      setReferrals(refRes);
+      setPatients(patRes);
+    } catch (error) {
+      toast.error(error.message || 'Failed to load referrals');
+      setReferrals([]);
+      setPatients([]);
+    }
   };
 
   useEffect(() => { loadData(); }, []);
@@ -123,7 +129,7 @@ export default function Referrals() {
   const columns = [
     { header: 'ID', render: (r) => <span className="text-gray-400 font-mono text-xs">REF-{r.id}</span> },
     { header: 'Patient Profile', render: (r) => {
-      const p = patients.find(pat => pat.id === r.patientId);
+      const p = patients.find(pat => String(pat.id) === String(r.patientId));
       return (
         <div className="flex flex-col">
           <span className="font-bold text-gray-900">{p ? p.name : 'Unknown Patient'}</span>

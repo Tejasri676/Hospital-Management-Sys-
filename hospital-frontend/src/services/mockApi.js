@@ -52,6 +52,14 @@ const formatDateTime = (date, time) => {
   return `${date}T${time}`;
 };
 
+const extractTime = (value) => {
+  if (!value) return "";
+  if (typeof value === "string" && value.includes("T")) {
+    return value.split("T")[1]?.slice(0, 5) || "";
+  }
+  return "";
+};
+
 const normalizePatient = (raw) => {
   if (!raw) return null;
 
@@ -67,25 +75,26 @@ const normalizePatient = (raw) => {
         return String(value).trim();
       }
     }
-    return '';
+    return "";
   };
 
-  const name = getString('name', 'patient_name');
+  const name = getString("name", "patient_name");
   if (!name) {
     return null;
   }
 
   return {
     id: normalizedRaw.patient_id ?? normalizedRaw.id ?? normalizedRaw.patientid,
-    patient_id: normalizedRaw.patient_id ?? normalizedRaw.id ?? normalizedRaw.patientid,
+    patient_id:
+      normalizedRaw.patient_id ?? normalizedRaw.id ?? normalizedRaw.patientid,
     name,
-    phone: getString('phone', 'contact_number'),
-    gender: getString('gender'),
-    dob: getString('dob', 'date_of_birth'),
-    blood_group: getString('blood_group', 'bloodGroup'),
-    address: getString('address'),
-    type: getString('type', 'patient_type'),
-    age: normalizedRaw.age ?? calculateAge(getString('dob', 'date_of_birth')),
+    phone: getString("phone", "contact_number"),
+    gender: getString("gender"),
+    dob: getString("dob", "date_of_birth"),
+    blood_group: getString("blood_group", "bloodGroup"),
+    address: getString("address"),
+    type: getString("type", "patient_type"),
+    age: normalizedRaw.age ?? calculateAge(getString("dob", "date_of_birth")),
   };
 };
 
@@ -104,24 +113,31 @@ const normalizeDoctor = (raw) => {
         return String(value).trim();
       }
     }
-    return '';
+    return "";
   };
 
-  const name = getString('name', 'doctor_name');
+  const name = getString("name", "doctor_name");
   if (!name) {
     return null;
   }
 
   return {
     id: normalizedRaw.doctor_id ?? normalizedRaw.id ?? normalizedRaw.doctorid,
-    doctor_id: normalizedRaw.doctor_id ?? normalizedRaw.id ?? normalizedRaw.doctorid,
+    doctor_id:
+      normalizedRaw.doctor_id ?? normalizedRaw.id ?? normalizedRaw.doctorid,
     name,
-    specialization: getString('specialization', 'specialization_name', 'department'),
-    qualification: getString('qualification'),
-    license_no: getString('license_no', 'licenseNo', 'licence_no'),
-    dept_id: normalizedRaw.dept_id ?? normalizedRaw.deptid ?? '',
-    email: getString('email'),
-    consultation_fee: Number(normalizedRaw.consultation_fee ?? normalizedRaw.fee ?? 0),
+    specialization: getString(
+      "specialization",
+      "specialization_name",
+      "department",
+    ),
+    qualification: getString("qualification"),
+    license_no: getString("license_no", "licenseNo", "licence_no"),
+    dept_id: normalizedRaw.dept_id ?? normalizedRaw.deptid ?? "",
+    email: getString("email"),
+    consultation_fee: Number(
+      normalizedRaw.consultation_fee ?? normalizedRaw.fee ?? 0,
+    ),
   };
 };
 
@@ -133,104 +149,337 @@ const normalizeAppointment = (raw) => {
     return acc;
   }, {});
 
-  const dateTime = splitDateTime(normalizedRaw.appt_date ?? normalizedRaw.date_time ?? normalizedRaw.datetime ?? normalizedRaw.date);
+  const dateTime = splitDateTime(
+    normalizedRaw.appt_date ??
+      normalizedRaw.date_time ??
+      normalizedRaw.datetime ??
+      normalizedRaw.date,
+  );
 
   return {
-    id: normalizedRaw.appt_id ?? normalizedRaw.id ?? normalizedRaw.app_id ?? normalizedRaw.appointment_id,
+    id:
+      normalizedRaw.appt_id ??
+      normalizedRaw.id ??
+      normalizedRaw.app_id ??
+      normalizedRaw.appointment_id,
     patientId: normalizedRaw.patient_id ?? normalizedRaw.patientid,
     doctorId: normalizedRaw.doctor_id ?? normalizedRaw.doctorid,
     date: dateTime.date,
-    time: normalizedRaw.appt_time ?? dateTime.time,
-    duration: Number(normalizedRaw.duration_mins ?? normalizedRaw.duration ?? 30),
-    reason: normalizedRaw.reason ?? normalizedRaw.notes ?? '',
-    height: normalizedRaw.height ?? '',
-    weight: normalizedRaw.weight ?? '',
-    status: normalizedRaw.status ?? 'Scheduled',
-    is_followup: Boolean(normalizedRaw.is_followup ?? normalizedRaw.isfollowup ?? false),
+    time: extractTime(normalizedRaw.appt_time) || dateTime.time,
+    duration: Number(
+      normalizedRaw.duration_mins ?? normalizedRaw.duration ?? 30,
+    ),
+    reason: normalizedRaw.reason ?? normalizedRaw.notes ?? "",
+    height: normalizedRaw.height ?? "",
+    weight: normalizedRaw.weight ?? "",
+    status: normalizedRaw.status ?? "Scheduled",
+    is_followup: Boolean(
+      normalizedRaw.is_followup ??
+      normalizedRaw.isfollowup ??
+      normalizedRaw.notes === "Follow-up",
+    ),
     is_referral: Boolean(normalizedRaw.is_referral ?? false),
     fee: Number(normalizedRaw.consultation_fee ?? normalizedRaw.fee ?? 0),
-    parentAppointmentId: normalizedRaw.parent_appointment_id ?? normalizedRaw.parentappointmentid ?? '',
+    parentAppointmentId:
+      normalizedRaw.parent_appointment_id ??
+      normalizedRaw.parentappointmentid ??
+      "",
   };
 };
 
-const normalizeMedicine = (raw) => ({
-  id: raw.id ?? raw.med_id ?? raw.medicine_id,
-  name: raw.name ?? raw.medicine_name ?? '',
-  stock: Number(raw.stock ?? raw.quantity_in_stock ?? 0),
-  price: Number(raw.price ?? 0),
-  category: raw.category ?? '',
-});
+const normalizeMedicine = (raw) => {
+  const normalizedRaw = Object.entries(raw || {}).reduce(
+    (acc, [key, value]) => {
+      acc[key.toLowerCase()] = value;
+      return acc;
+    },
+    {},
+  );
 
-const normalizePrescriptionMedicine = (raw) => ({
-  medicineId: raw.medicineId ?? raw.medicine_id ?? raw.med_id,
-  quantity: Number(raw.quantity ?? 0),
-  duration: raw.duration ?? '',
-  frequency: raw.frequency ?? raw.dosage ?? '',
-  purchased: Boolean(raw.purchased ?? false),
-});
+  return {
+    id: normalizedRaw.id ?? normalizedRaw.med_id ?? normalizedRaw.medicine_id,
+    med_id:
+      normalizedRaw.med_id ?? normalizedRaw.id ?? normalizedRaw.medicine_id,
+    medicine_id:
+      normalizedRaw.medicine_id ?? normalizedRaw.id ?? normalizedRaw.med_id,
+    name: normalizedRaw.name ?? normalizedRaw.medicine_name ?? "",
+    stock: Number(normalizedRaw.stock ?? normalizedRaw.quantity_in_stock ?? 0),
+    price: Number(normalizedRaw.price ?? 0),
+    category: normalizedRaw.category ?? "",
+  };
+};
 
-const normalizePrescription = (raw) => ({
-  id: raw.id ?? raw.pres_id ?? raw.prescription_id,
-  appointmentId: raw.appointmentId ?? raw.app_id ?? raw.appointment_id,
-  date: raw.date ?? raw.created_at ?? '',
-  medicines: ensureArray(raw.medicines).map(normalizePrescriptionMedicine),
-});
+const normalizePrescriptionMedicine = (raw) => {
+  const normalizedRaw = Object.entries(raw || {}).reduce(
+    (acc, [key, value]) => {
+      acc[key.toLowerCase()] = value;
+      return acc;
+    },
+    {},
+  );
 
-const normalizeLabTest = (raw) => ({
-  id: raw.id ?? raw.order_id ?? raw.test_id,
-  appointmentId: raw.appointmentId ?? raw.app_id ?? raw.appointment_id ?? '',
-  patientId: raw.patientId ?? raw.patient_id ?? '',
-  doctorId: raw.doctorId ?? raw.doctor_id ?? '',
-  testName: raw.testName ?? raw.test_name ?? raw.name ?? '',
-  status: raw.status ?? 'Pending',
-  result: typeof raw.result === 'object' ? raw.result?.result ?? '' : raw.result ?? '',
-  remarks: typeof raw.result === 'object' ? raw.result?.remarks ?? '' : raw.remarks ?? '',
-  date: raw.date ?? raw.created_at ?? '',
-});
+  return {
+    medicineId:
+      normalizedRaw.medicineid ??
+      normalizedRaw.medicine_id ??
+      normalizedRaw.med_id,
+    medicine_id:
+      normalizedRaw.medicine_id ??
+      normalizedRaw.medicineid ??
+      normalizedRaw.med_id,
+    med_id:
+      normalizedRaw.med_id ??
+      normalizedRaw.medicine_id ??
+      normalizedRaw.medicineid,
+    medicineName:
+      normalizedRaw.medicinename ?? normalizedRaw.medicine_name ?? "",
+    quantity: Number(normalizedRaw.quantity ?? 1),
+    dosage: normalizedRaw.dosage ?? "",
+    duration: normalizedRaw.duration ?? "",
+    frequency: normalizedRaw.frequency ?? normalizedRaw.dosage ?? "",
+    purchased: Boolean(normalizedRaw.purchased ?? false),
+  };
+};
 
-const normalizeReferral = (raw) => ({
-  id: raw.id ?? raw.referral_id,
-  patientId: raw.patientId ?? raw.patient_id,
-  referredTo:
-    raw.referredTo ??
-    raw.referred_to ??
-    raw.to_doctor_name ??
-    raw.to_department ??
-    raw.destination ??
-    '',
-  reason: raw.reason ?? raw.notes ?? '',
-  date: raw.date ?? raw.created_at ?? '',
-  nurseId: raw.nurseId ?? raw.nurse_id ?? '',
-});
+const normalizePrescription = (raw) => {
+  const normalizedRaw = Object.entries(raw || {}).reduce(
+    (acc, [key, value]) => {
+      acc[key.toLowerCase()] = value;
+      return acc;
+    },
+    {},
+  );
 
-const normalizeBed = (raw) => ({
-  id: raw.id ?? raw.bed_id,
-  bed_id: raw.bed_id ?? raw.id,
-  wardType: raw.wardType ?? raw.ward_type ?? raw.ward ?? '',
-  bedNumber: raw.bedNumber ?? raw.bed_number ?? raw.bed_no ?? '',
-  isAvailable: Boolean(raw.isAvailable ?? raw.is_available ?? false),
-  costPerDay: Number(raw.costPerDay ?? raw.cost_per_day ?? 0),
-});
+  return {
+    id:
+      normalizedRaw.id ??
+      normalizedRaw.pres_id ??
+      normalizedRaw.prescription_id,
+    appointmentId:
+      normalizedRaw.appointmentid ??
+      normalizedRaw.appt_id ??
+      normalizedRaw.app_id ??
+      normalizedRaw.appointment_id,
+    patientId: normalizedRaw.patientid ?? normalizedRaw.patient_id ?? "",
+    patientName: normalizedRaw.patientname ?? normalizedRaw.patient_name ?? "",
+    doctorId: normalizedRaw.doctorid ?? normalizedRaw.doctor_id ?? "",
+    doctorName: normalizedRaw.doctorname ?? normalizedRaw.doctor_name ?? "",
+    date:
+      normalizedRaw.date ??
+      normalizedRaw.presc_date ??
+      normalizedRaw.created_at ??
+      "",
+    medicines: ensureArray(normalizedRaw.medicines).map(
+      normalizePrescriptionMedicine,
+    ),
+  };
+};
 
-const normalizeAdmission = (raw) => ({
-  id: raw.id ?? raw.admission_id,
-  patientId: raw.patientId ?? raw.patient_id,
-  bedId: raw.bedId ?? raw.bed_id,
-  wardType: raw.wardType ?? raw.ward_type ?? '',
-  bedNumber: raw.bedNumber ?? raw.bed_number ?? '',
-  status: raw.status ?? 'Admitted',
-  dateAdmitted: raw.dateAdmitted ?? raw.admit_date ?? raw.admitted_at ?? '',
-  dateDischarged: raw.dateDischarged ?? raw.discharge_date ?? raw.discharged_at ?? null,
-  totalCost: Number(raw.totalCost ?? raw.total_cost ?? 0),
-});
+const normalizeLabTest = (raw) => {
+  const normalizedRaw = Object.entries(raw || {}).reduce(
+    (acc, [key, value]) => {
+      acc[key.toLowerCase()] = value;
+      return acc;
+    },
+    {},
+  );
 
-const normalizeStaff = (raw) => ({
-  id: raw.id ?? raw.staff_id,
-  name: raw.name ?? '',
-  role: raw.role ?? '',
-  email: raw.email ?? '',
-  phone: raw.phone ?? '',
-});
+  return {
+    id: normalizedRaw.id ?? normalizedRaw.order_id ?? normalizedRaw.test_id,
+    appointmentId:
+      normalizedRaw.appointmentid ??
+      normalizedRaw.app_id ??
+      normalizedRaw.appt_id ??
+      normalizedRaw.appointment_id ??
+      "",
+    patientId: normalizedRaw.patientid ?? normalizedRaw.patient_id ?? "",
+    patientName: normalizedRaw.patientname ?? normalizedRaw.patient_name ?? "",
+    doctorId: normalizedRaw.doctorid ?? normalizedRaw.doctor_id ?? "",
+    doctorName: normalizedRaw.doctorname ?? normalizedRaw.doctor_name ?? "",
+    testName:
+      normalizedRaw.testname ??
+      normalizedRaw.test_name ??
+      normalizedRaw.name ??
+      "",
+    status: normalizedRaw.status ?? "Pending",
+    result:
+      typeof normalizedRaw.result === "object"
+        ? (normalizedRaw.result?.result ?? "")
+        : (normalizedRaw.result ?? ""),
+    remarks:
+      typeof normalizedRaw.result === "object"
+        ? (normalizedRaw.result?.remarks ?? "")
+        : (normalizedRaw.remarks ?? ""),
+    date:
+      normalizedRaw.date ??
+      normalizedRaw.test_date ??
+      normalizedRaw.created_at ??
+      "",
+  };
+};
+
+const normalizeReferral = (raw) => {
+  const normalizedRaw = Object.entries(raw || {}).reduce(
+    (acc, [key, value]) => {
+      acc[key.toLowerCase()] = value;
+      return acc;
+    },
+    {},
+  );
+
+  return {
+    id: normalizedRaw.id ?? normalizedRaw.referral_id,
+    patientId: normalizedRaw.patientid ?? normalizedRaw.patient_id,
+    referredTo:
+      normalizedRaw.referredto ??
+      normalizedRaw.referred_to ??
+      normalizedRaw.to_doctor_name ??
+      normalizedRaw.to_department ??
+      normalizedRaw.destination ??
+      "",
+    reason: normalizedRaw.reason ?? normalizedRaw.notes ?? "",
+    date:
+      normalizedRaw.date ??
+      normalizedRaw.referral_date ??
+      normalizedRaw.created_at ??
+      "",
+    nurseId: normalizedRaw.nurseid ?? normalizedRaw.nurse_id ?? "",
+  };
+};
+
+const normalizeBed = (raw) => {
+  const normalizedRaw = Object.entries(raw || {}).reduce(
+    (acc, [key, value]) => {
+      acc[key.toLowerCase()] = value;
+      return acc;
+    },
+    {},
+  );
+
+  const readBoolean = (value, fallback = false) => {
+    if (value === undefined || value === null) return fallback;
+    if (typeof value === "boolean") return value;
+    if (typeof value === "number") return value === 1;
+
+    const normalized = String(value).trim().toLowerCase();
+    if (["true", "1", "yes", "y"].includes(normalized)) return true;
+    if (["false", "0", "no", "n"].includes(normalized)) return false;
+
+    return fallback;
+  };
+
+  return {
+    id: normalizedRaw.id ?? normalizedRaw.bed_id,
+    bed_id: normalizedRaw.bed_id ?? normalizedRaw.id,
+    wardId: normalizedRaw.ward_id ?? normalizedRaw.wardid ?? "",
+    wardName: normalizedRaw.ward_name ?? "",
+    wardType: normalizedRaw.ward_type ?? normalizedRaw.ward ?? "",
+    bedNumber: normalizedRaw.bed_number ?? normalizedRaw.bed_no ?? "",
+    isAvailable: readBoolean(
+      normalizedRaw.is_available ?? normalizedRaw.isavailable,
+    ),
+    costPerDay: Number(
+      normalizedRaw.cost_per_day ?? normalizedRaw.costperday ?? 0,
+    ),
+    totalBeds: Number(normalizedRaw.total_beds ?? 0),
+    occupiedBeds: Number(normalizedRaw.occupied_beds ?? 0),
+    availableBeds: Number(normalizedRaw.available_beds ?? 0),
+  };
+};
+
+const expandWardBeds = (wards, admissions = []) => {
+  const activeAdmissions = admissions
+    .map(normalizeAdmission)
+    .filter((admission) => admission && admission.status === "Admitted");
+
+  return wards.flatMap((rawWard) => {
+    const ward = Object.entries(rawWard || {}).reduce((acc, [key, value]) => {
+      acc[key.toLowerCase()] = value;
+      return acc;
+    }, {});
+
+    const wardId = ward.ward_id ?? ward.wardid ?? ward.id;
+    const wardType =
+      ward.ward_type ?? ward.ward ?? ward.ward_name ?? `Ward ${wardId}`;
+    const wardName = ward.ward_name ?? wardType;
+    const totalBeds = Number(ward.total_beds ?? ward.totalbeds ?? 0);
+    const costPerDay = Number(ward.costperday ?? ward.cost_per_day ?? 0);
+    const occupiedBedNumbers = new Set(
+      activeAdmissions
+        .filter((admission) => admission.wardType === wardType)
+        .map((admission) => String(admission.bedNumber)),
+    );
+
+    return Array.from({ length: totalBeds }, (_, index) => {
+      const bedNumber = String(index + 1);
+      const occupiedBeds = occupiedBedNumbers.size;
+
+      return {
+        id: Number(wardId) * 10000 + index + 1,
+        bed_id: Number(wardId) * 10000 + index + 1,
+        wardId,
+        wardName,
+        wardType,
+        bedNumber,
+        isAvailable: !occupiedBedNumbers.has(bedNumber),
+        costPerDay,
+        totalBeds,
+        occupiedBeds,
+        availableBeds: Math.max(totalBeds - occupiedBeds, 0),
+      };
+    });
+  });
+};
+
+const normalizeAdmission = (raw) => {
+  const normalizedRaw = Object.entries(raw || {}).reduce(
+    (acc, [key, value]) => {
+      acc[key.toLowerCase()] = value;
+      return acc;
+    },
+    {},
+  );
+
+  return {
+    id: normalizedRaw.id ?? normalizedRaw.admission_id,
+    patientId: normalizedRaw.patientid ?? normalizedRaw.patient_id,
+    bedId: normalizedRaw.bedid ?? normalizedRaw.bed_id,
+    wardType: normalizedRaw.wardtype ?? normalizedRaw.ward_type ?? "",
+    bedNumber: normalizedRaw.bednumber ?? normalizedRaw.bed_number ?? "",
+    status: normalizedRaw.status ?? "Admitted",
+    dateAdmitted:
+      normalizedRaw.dateadmitted ??
+      normalizedRaw.admission_date ??
+      normalizedRaw.admit_date ??
+      normalizedRaw.admitted_at ??
+      "",
+    dateDischarged:
+      normalizedRaw.datedischarged ??
+      normalizedRaw.discharge_date ??
+      normalizedRaw.discharged_at ??
+      null,
+    totalCost: Number(normalizedRaw.totalcost ?? normalizedRaw.total_cost ?? 0),
+  };
+};
+
+const normalizeStaff = (raw) => {
+  if (!raw) return null;
+
+  const normalizedRaw = Object.entries(raw).reduce((acc, [key, value]) => {
+    acc[key.toLowerCase()] = value;
+    return acc;
+  }, {});
+
+  return {
+    id: normalizedRaw.id ?? normalizedRaw.staff_id ?? normalizedRaw.staffid,
+    staff_id:
+      normalizedRaw.staff_id ?? normalizedRaw.id ?? normalizedRaw.staffid,
+    name: normalizedRaw.name ?? "",
+    role: normalizedRaw.role ?? "",
+    email: normalizedRaw.email ?? "",
+    phone: normalizedRaw.phone ?? "",
+  };
+};
 
 const patientPayload = (data) => ({
   name: data.name,
@@ -246,10 +495,10 @@ const patientPayload = (data) => ({
 const doctorPayload = (data) => {
   // Validate required fields
   if (!data.name || !data.name.trim()) {
-    throw new Error('Doctor name is required');
+    throw new Error("Doctor name is required");
   }
   if (!data.specialization || !data.specialization.trim()) {
-    throw new Error('Specialization is required');
+    throw new Error("Specialization is required");
   }
 
   return {
@@ -259,15 +508,16 @@ const doctorPayload = (data) => {
     license_no: data.license_no?.trim() || null,
     dept_id: data.dept_id ? Number(data.dept_id) : null,
     email: data.email?.trim() || null,
-    consultation_fee: data.consultation_fee ? Number(data.consultation_fee) : null,
+    consultation_fee: data.consultation_fee
+      ? Number(data.consultation_fee)
+      : null,
   };
 };
 
 const appointmentPayload = (data) => ({
   patient_id: Number(data.patientId),
   doctor_id: Number(data.doctorId),
-  date: data.date,
-  time: data.time,
+  appt_date: formatDateTime(data.date, data.time),
   duration: Number(data.duration ?? 30),
   reason: data.reason,
   height: data.height ? Number(data.height) : undefined,
@@ -279,8 +529,13 @@ const appointmentPayload = (data) => ({
 });
 
 const prescriptionPayload = (data) => ({
-  appointment_id: Number(data.appointmentId),
-  date: data.date,
+  appt_id: Number(data.appointmentId),
+  medicines: (data.medicines || []).map((med) => ({
+    medicine_id: Number(med.medicineId),
+    dosage:
+      med.dosage || med.duration || (med.quantity ? `Qty ${med.quantity}` : ""),
+    frequency: med.frequency || "",
+  })),
 });
 
 const createOrUpdate = async (resource, id, payload) => {
@@ -303,22 +558,29 @@ const createOrUpdate = async (resource, id, payload) => {
 
 export const mockApi = {
   getPatients: async () => {
-    const data = await getData(api.get('/patients/All'));
+    const data = await getData(api.get("/patients"));
     return ensureArray(data)
       .map(normalizePatient)
-      .filter(patient => patient !== null && patient.name);
+      .filter((patient) => patient !== null && patient.name);
   },
 
-  savePatient: async (patient) => createOrUpdate('patients', patient.id, patientPayload(patient)),
+  savePatient: async (patient) =>
+    createOrUpdate("patients", patient.id, patientPayload(patient)),
+
+  removePatient: async (id) => {
+    const response = await api.delete(`/patients/${id}`);
+    return response.data;
+  },
 
   getDoctors: async () => {
-    const data = await getData(api.get('/doctors'));
+    const data = await getData(api.get("/doctors"));
     return ensureArray(data)
       .map(normalizeDoctor)
-      .filter(doctor => doctor !== null && doctor.name);
+      .filter((doctor) => doctor !== null && doctor.name);
   },
 
-  saveDoctor: async (doctor) => createOrUpdate('doctors', doctor.id, doctorPayload(doctor)),
+  saveDoctor: async (doctor) =>
+    createOrUpdate("doctors", doctor.id, doctorPayload(doctor)),
 
   removeDoctor: async (id) => {
     const response = await api.delete(`/doctors/${id}`);
@@ -326,57 +588,83 @@ export const mockApi = {
   },
 
   getAppointments: async () => {
-    const data = await getData(api.get('/appointments'));
+    const data = await getData(api.get("/appointments"));
     return ensureArray(data).map(normalizeAppointment);
   },
 
+  getAvailableAppointments: async () => {
+    try {
+      const data = await getData(
+        api.get("/prescriptions/appointments/available"),
+      );
+      return ensureArray(data).map(normalizeAppointment);
+    } catch (error) {
+      if (error.response?.status === 404) {
+        const fallback = await getData(api.get("/appointments"));
+        return ensureArray(fallback).map(normalizeAppointment);
+      }
+      throw error;
+    }
+  },
+
   saveAppointment: async (appointment) =>
-    createOrUpdate('appointments', appointment.id, appointmentPayload(appointment)),
+    createOrUpdate(
+      "appointments",
+      appointment.id,
+      appointmentPayload(appointment),
+    ),
 
   getMedicines: async () => {
-    const data = await getData(api.get('/medicines'));
+    const data = await getData(api.get("/medicines"));
     return ensureArray(data).map(normalizeMedicine);
   },
 
   updateMedicineStock: async (id, reduceBy) => {
-    const response = await api.patch(`/medicines/${id}/stock`, { reduce_by: reduceBy });
-    return response.data;
-  },
-
-  getPrescriptions: async () => {
-    const data = await getData(api.get('/prescriptions'));
-    return ensureArray(data).map(normalizePrescription);
-  },
-
-  savePrescription: async (prescription) => {
-    const created = await getData(api.post('/prescriptions', prescriptionPayload(prescription)));
-    const prescriptionId = created?.id ?? created?.pres_id ?? created?.prescription_id;
-
-    if (prescriptionId && Array.isArray(prescription.medicines)) {
-      await Promise.all(
-        prescription.medicines.map((medicine) =>
-          api.post(`/prescriptions/${prescriptionId}/medicines`, {
-            medicine_id: Number(medicine.medicineId),
-            quantity: Number(medicine.quantity),
-            duration: medicine.duration,
-            frequency: medicine.frequency,
-          }),
-        ),
-      );
-    }
-
-    return created;
-  },
-
-  markMedicinePurchased: async (presId, medicineId) => {
-    const response = await api.patch(`/prescriptions/${presId}/medicines/${medicineId}`, {
-      purchased: true,
+    const response = await api.patch(`/medicines/${id}/stock`, {
+      reduce_by: reduceBy,
     });
     return response.data;
   },
 
+  addMedicineStock: async (id, addBy) => {
+    const response = await api.patch(`/medicines/${id}/stock`, {
+      add_by: addBy,
+    });
+    return response.data;
+  },
+
+  getPrescriptions: async () => {
+    const data = await getData(api.get("/prescriptions"));
+    return ensureArray(data).map(normalizePrescription);
+  },
+
+  savePrescription: async (prescription) => {
+    const payload = prescriptionPayload(prescription);
+    console.log("📋 Prescription payload being sent to API:", payload);
+    return getData(api.post("/prescriptions", payload));
+  },
+
+  removePrescription: async (id) => {
+    const response = await api.delete(`/prescriptions/${id}`);
+    return response.data;
+  },
+
+  markMedicinePurchased: async (presId, medicineId) => {
+    const response = await api.patch(
+      `/prescriptions/${presId}/medicines/${medicineId}`,
+      {
+        purchased: true,
+      },
+    );
+    return {
+      success: true,
+      message: response.data?.message || "Medicine marked as purchased",
+      ...response.data,
+    };
+  },
+
   getLabTests: async () => {
-    const data = await getData(api.get('/lab-tests'));
+    const data = await getData(api.get("/lab-tests"));
     return ensureArray(data).map(normalizeLabTest);
   },
 
@@ -388,12 +676,12 @@ export const mockApi = {
       status: test.status,
     };
 
-    const response = await api.post('/lab-tests/order', payload);
+    const response = await api.post("/lab-tests/order", payload);
     return response.data;
   },
 
   updateLabResult: async (id, result, labTechId) => {
-    const response = await api.post('/lab-tests/result', {
+    const response = await api.post("/lab-tests/result", {
       order_id: id,
       result,
       lab_tech_id: labTechId,
@@ -410,12 +698,12 @@ export const mockApi = {
   },
 
   getReferrals: async () => {
-    const data = await getData(api.get('/referrals'));
+    const data = await getData(api.get("/referrals"));
     return ensureArray(data).map(normalizeReferral);
   },
 
   saveReferral: async (referral) =>
-    createOrUpdate('referrals', referral.id, {
+    createOrUpdate("referrals", referral.id, {
       patient_id: Number(referral.patientId),
       referred_to: referral.referredTo,
       reason: referral.reason,
@@ -424,17 +712,32 @@ export const mockApi = {
     }),
 
   getBeds: async () => {
-    const data = await getData(api.get('/wards'));
-    return ensureArray(data).map(normalizeBed);
+    const data = await getData(api.get("/wards"));
+    const rows = ensureArray(data);
+    const hasVirtualBeds = rows.some((row) => {
+      const keys = Object.keys(row || {}).map((key) => key.toLowerCase());
+      return (
+        keys.includes("bed_number") ||
+        keys.includes("bed_id") ||
+        keys.includes("is_available")
+      );
+    });
+
+    if (hasVirtualBeds) {
+      return rows.map(normalizeBed);
+    }
+
+    const admissions = await getData(api.get("/admissions"));
+    return expandWardBeds(rows, ensureArray(admissions));
   },
 
   getAdmissions: async () => {
-    const data = await getData(api.get('/admissions'));
+    const data = await getData(api.get("/admissions"));
     return ensureArray(data).map(normalizeAdmission);
   },
 
   saveAdmission: async (admission) =>
-    createOrUpdate('admissions', admission.id, {
+    createOrUpdate("admissions", admission.id, {
       patient_id: Number(admission.patientId),
       bed_id: admission.bedId,
       ward_type: admission.wardType,
@@ -445,6 +748,13 @@ export const mockApi = {
       total_cost: Number(admission.totalCost ?? 0),
     }),
 
+  increaseWardCapacity: async (wardId, addBeds) => {
+    const response = await api.patch(`/wards/${wardId}/capacity`, {
+      add_beds: Number(addBeds),
+    });
+    return response.data;
+  },
+
   dischargePatient: async (id, dischargeDate) => {
     const response = await api.patch(`/admissions/${id}/discharge`, {
       discharge_date: dischargeDate,
@@ -453,12 +763,14 @@ export const mockApi = {
   },
 
   getStaff: async () => {
-    const data = await getData(api.get('/staff'));
-    return ensureArray(data).map(normalizeStaff);
+    const data = await getData(api.get("/staff"));
+    return ensureArray(data)
+      .map(normalizeStaff)
+      .filter((staff) => staff !== null && staff.name);
   },
 
   saveStaff: async (staff) =>
-    createOrUpdate('staff', staff.id, {
+    createOrUpdate("staff", staff.id, {
       name: staff.name,
       role: staff.role,
       email: staff.email,

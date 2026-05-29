@@ -11,7 +11,7 @@ function LabTestForm({ onSubmit, onCancel, appointments, patients, initialData }
   const [appointmentId, setAppointmentId] = useState(initialData?.appointmentId || '');
   const [testName, setTestName] = useState('');
 
-  const completedAppointments = appointments.filter(app => app.status === 'Completed');
+  const availableAppointments = appointments;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -40,8 +40,8 @@ function LabTestForm({ onSubmit, onCancel, appointments, patients, initialData }
               className="w-full border-gray-300 rounded-lg text-sm p-2.5 bg-gray-50 focus:ring-blue-500"
             >
               <option value="">Select Appointment...</option>
-              {completedAppointments.map(app => {
-                const p = patients.find(pat => pat.id === app.patientId);
+              {availableAppointments.map(app => {
+                const p = patients.find(pat => String(pat.id) === String(app.patientId));
                 return <option key={app.id} value={app.id}>APT-{app.id} | {p?.name} | {app.date}</option>;
               })}
             </select>
@@ -83,14 +83,18 @@ export default function LabTests() {
   const [prefilledData, setPrefilledData] = useState(null);
 
   const loadData = async () => {
-    const [testRes, appRes, patRes] = await Promise.all([
-      mockApi.getLabTests(),
-      mockApi.getAppointments(),
-      mockApi.getPatients()
-    ]);
-    setTests(testRes);
-    setAppointments(appRes);
-    setPatients(patRes);
+    try {
+      const [testRes, appRes, patRes] = await Promise.all([
+        mockApi.getLabTests(),
+        mockApi.getAvailableAppointments(),
+        mockApi.getPatients()
+      ]);
+      setTests(testRes);
+      setAppointments(appRes);
+      setPatients(patRes);
+    } catch (error) {
+      toast.error(error.message || 'Failed to load lab test data');
+    }
 
     if (location.state?.prefill) {
        setPrefilledData(location.state.prefill);
@@ -143,11 +147,9 @@ export default function LabTests() {
 
   const columns = [
     { header: 'ID', render: (r) => <span className="text-gray-400 font-mono text-xs">LAB-{r.id}</span> },
-    { header: 'Patient', render: (r) => {
-      const app = appointments.find(a => a.id === r.appointmentId);
-      const p = patients.find(pat => pat.id === app?.patientId);
-      return <span className="font-semibold text-gray-900">{p ? p.name : 'Unknown'}</span>;
-    }},
+    { header: 'Patient', render: (r) => (
+      <span className="font-semibold text-gray-900">{r.patientName || 'Unknown'}</span>
+    )},
     { header: 'Test Name', accessor: 'testName' },
     { header: 'Result', render: (r) => (
       <span className={r.status === 'Completed' ? 'text-gray-900 font-medium' : 'text-orange-500 italic'}>

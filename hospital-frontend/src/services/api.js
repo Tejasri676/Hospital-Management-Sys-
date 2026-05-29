@@ -9,7 +9,7 @@ const api = axios.create({
   }, 
 });
 
-export const getPatients = () => api.get('/patients/All');
+export const getPatients = () => api.get("/patients");
 export const createPatient = (data) => api.post('/patients', data);
 export const getPatientDetails = (id) => api.get(`/patients/${id}`);
 

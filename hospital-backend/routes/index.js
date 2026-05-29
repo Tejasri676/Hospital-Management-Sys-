@@ -23,6 +23,7 @@ router.use('/staff', staffRoutes);
 
 // Ward & Admission endpoints
 router.get('/wards', wardController.getWards);
+router.patch('/wards/:id/capacity', wardController.updateWardCapacity);
 router.post('/admissions', wardController.createAdmission);
 router.get('/admissions', wardController.getAdmissions);
 router.patch('/admissions/:id/discharge', wardController.dischargePatient);

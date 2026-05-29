@@ -13,7 +13,7 @@ function PrescriptionForm({ onSubmit, onCancel, patients, appointments, medicine
     { medicineId: '', quantity: '', duration: '', frequency: '', purchased: false }
   ]);
 
-  const completedAppointments = appointments.filter(app => app.status === 'Completed');
+  const availableAppointments = appointments;
 
   const handleAddMedicine = () => {
     setPrescriptionMedicines([...prescriptionMedicines, { medicineId: '', quantity: '', duration: '', frequency: '', purchased: false }]);
@@ -34,7 +34,7 @@ function PrescriptionForm({ onSubmit, onCancel, patients, appointments, medicine
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!appointmentId) {
-      toast.error('Please select a completed appointment');
+      toast.error('Please select an appointment');
       return;
     }
     if (prescriptionMedicines.some(m => !m.medicineId || !m.quantity)) {
@@ -51,6 +51,7 @@ function PrescriptionForm({ onSubmit, onCancel, patients, appointments, medicine
         quantity: parseInt(m.quantity, 10)
       }))
     };
+    console.log('📤 Sending prescription payload:', payload);
     onSubmit(payload);
   };
 
@@ -59,7 +60,7 @@ function PrescriptionForm({ onSubmit, onCancel, patients, appointments, medicine
       <h3 className="text-xl font-bold text-gray-900 mb-8 border-b pb-4">Create New Prescription</h3>
       <form onSubmit={handleSubmit}>
         <div className="mb-8">
-          <label className="block text-sm font-semibold text-gray-800 mb-1.5">Select Completed Appointment</label>
+          <label className="block text-sm font-semibold text-gray-800 mb-1.5">Select Appointment</label>
           <select 
             value={appointmentId} 
             onChange={(e) => setAppointmentId(e.target.value)}
@@ -67,8 +68,8 @@ function PrescriptionForm({ onSubmit, onCancel, patients, appointments, medicine
             required
           >
             <option value="">-- Choose Appointment --</option>
-            {completedAppointments.map(app => {
-              const p = patients.find(pat => pat.id === app.patientId);
+            {availableAppointments.map(app => {
+              const p = patients.find(pat => String(pat.id) === String(app.patientId));
               return (
                 <option key={app.id} value={app.id}>
                   APT-{app.id} | {p?.name} | {app.date} | {app.reason}
@@ -76,8 +77,8 @@ function PrescriptionForm({ onSubmit, onCancel, patients, appointments, medicine
               );
             })}
           </select>
-          {completedAppointments.length === 0 && (
-            <p className="text-xs text-red-500 mt-1">No completed appointments found to prescribe for.</p>
+          {availableAppointments.length === 0 && (
+            <p className="text-xs text-red-500 mt-1">No appointments available to prescribe for.</p>
           )}
         </div>
 
@@ -189,16 +190,20 @@ export default function Prescriptions() {
   const isPharmacist = user?.role === ROLES.PHARMACIST || user?.role === ROLES.ADMIN;
 
   const loadData = async () => {
-    const [presRes, appRes, patRes, medRes] = await Promise.all([
-      mockApi.getPrescriptions(),
-      mockApi.getAppointments(),
-      mockApi.getPatients(),
-      mockApi.getMedicines()
-    ]);
-    setPrescriptions(presRes);
-    setAppointments(appRes);
-    setPatients(patRes);
-    setMedicinesList(medRes);
+    try {
+      const [presRes, appRes, patRes, medRes] = await Promise.all([
+        mockApi.getPrescriptions(),
+        mockApi.getAvailableAppointments(),
+        mockApi.getPatients(),
+        mockApi.getMedicines()
+      ]);
+      setPrescriptions(presRes);
+      setAppointments(appRes);
+      setPatients(patRes);
+      setMedicinesList(medRes);
+    } catch (error) {
+      toast.error(error.message || 'Failed to load prescription data');
+    }
   };
 
   useEffect(() => { loadData(); }, []);
@@ -220,38 +225,50 @@ export default function Prescriptions() {
     }
   };
 
+  const handleDeletePrescription = async (presId) => {
+    if (!window.confirm(`Delete prescription PRE-${presId}?`)) return;
+    try {
+      await mockApi.removePrescription(presId);
+      toast.success('Prescription deleted successfully');
+      await loadData();
+    } catch (error) {
+      toast.error(error.message || 'Failed to delete prescription');
+    }
+  };
+
   const columns = [
     { header: 'ID', render: (r) => <span className="text-gray-400 font-mono text-xs">PRE-{r.id}</span> },
-    { header: 'Patient', render: (r) => {
-      const app = appointments.find(a => a.id === r.appointmentId);
-      const p = patients.find(pat => pat.id === app?.patientId);
-      return <span className="font-semibold text-gray-900">{p ? p.name : 'Unknown'}</span>;
-    }},
+    { header: 'Patient', render: (r) => (
+      <span className="font-semibold text-gray-900">{r.patientName || 'Unknown'}</span>
+    )},
     { header: 'Date', accessor: 'date' },
     { header: 'Medicine Details', render: (r) => (
       <div className="space-y-1">
-        {r.medicines.map((m, idx) => {
-          const med = medicinesList.find(ml => ml.id === m.medicineId);
-          return (
-            <div key={idx} className="flex items-center text-xs justify-between gap-4 p-1 bg-gray-50 rounded">
-              <span>{med?.name} x {m.quantity} ({m.frequency})</span>
-              {m.purchased ? (
-                <span className="flex items-center text-green-600 font-medium">
-                  <CheckCircle className="w-3 h-3 mr-0.5" /> Purchased
-                </span>
-              ) : isPharmacist ? (
-                <button 
-                  onClick={() => handleMarkPurchased(r.id, m.medicineId)}
-                  className="px-2 py-0.5 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded text-[10px] font-bold"
-                >
-                  Mark Purchased
-                </button>
-              ) : (
-                <span className="text-orange-500 font-medium italic">Pending</span>
-              )}
-            </div>
-          );
-        })}
+        {r.medicines && r.medicines.length > 0 ? (
+          r.medicines.map((m, idx) => {
+            return (
+              <div key={idx} className="flex items-center text-xs justify-between gap-4 p-1 bg-gray-50 rounded">
+                <span>{m.medicineName || m.medicine_name} {m.dosage ? `- ${m.dosage}` : ''} ({m.frequency})</span>
+                {m.purchased ? (
+                  <span className="flex items-center text-green-600 font-medium">
+                    <CheckCircle className="w-3 h-3 mr-0.5" /> Purchased
+                  </span>
+                ) : isPharmacist ? (
+                  <button 
+                    onClick={() => handleMarkPurchased(r.id, m.medicineId)}
+                    className="px-2 py-0.5 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded text-[10px] font-bold"
+                  >
+                    Mark Purchased
+                  </button>
+                ) : (
+                  <span className="text-orange-500 font-medium italic">Pending</span>
+                )}
+              </div>
+            );
+          })
+        ) : (
+          <span className="text-gray-400 italic text-xs">No medicines added</span>
+        )}
       </div>
     )},
     { header: 'Actions', render: (r) => (
@@ -271,6 +288,15 @@ export default function Prescriptions() {
            >
              Admit Patient
            </button>
+        )}
+        {isNurse && (
+          <button
+            onClick={() => handleDeletePrescription(r.id)}
+            className="px-3 py-1 bg-red-50 text-red-700 hover:bg-red-100 rounded text-xs font-bold border border-red-200 transition inline-flex items-center"
+          >
+            <Trash2 className="w-3.5 h-3.5 mr-1" />
+            Delete
+          </button>
         )}
       </div>
     )},

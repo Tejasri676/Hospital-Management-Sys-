@@ -5,25 +5,38 @@
 
 -- 1. PATIENT table
 CREATE TABLE PATIENT (
-    patient_id      NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    patient_name    VARCHAR2(100) NOT NULL,
-    dob             DATE,
-    gender          VARCHAR2(10),
-    blood_group     VARCHAR2(5),
-    address         VARCHAR2(255),
-    phone           VARCHAR2(20)
+    patient_id       NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    patient_name     VARCHAR2(100) NOT NULL,
+    gender           VARCHAR2(10),
+    dob              DATE,
+    blood_group      VARCHAR2(5),
+    phone            VARCHAR2(15),
+    address          VARCHAR2(255)
 );
+
+-- 2. DEPARTMENT table
+CREATE TABLE DEPARTMENT (
+    department_id   NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name            VARCHAR2(100) NOT NULL,
+    location        VARCHAR2(100),
+    headdoctor_id   NUMBER REFERENCES DOCTOR(doctor_id)
+);
+
 
 -- 2. DOCTOR table
 CREATE TABLE DOCTOR (
     doctor_id        NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name             VARCHAR2(100) NOT NULL,
-    specialization   VARCHAR2(100),
-    qualification    VARCHAR2(200),
-    license_no       VARCHAR2(50),
-    dept_id          NUMBER,
+    specialization   VARCHAR2(50),
+    qualification    VARCHAR2(100),
+    license_no       VARCHAR2(30),
+    phone            VARCHAR2(15),
     email            VARCHAR2(100),
-    consultation_fee NUMBER(10,2) DEFAULT 0
+    joining_date     DATE,
+    dept_id         NUMBER REFERENCES DEPARTMENT(department_id),
+    gender           VARCHAR2(10),
+    salary           NUMBER,
+    consultation_fee NUMBER
 );
 
 -- 3. APPOINTMENT table
@@ -50,22 +63,25 @@ CREATE TABLE PRESCRIPTION (
 
 -- 5. MEDICINE table
 CREATE TABLE MEDICINE (
-    med_id           NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    name             VARCHAR2(100) NOT NULL,
-    stock            NUMBER DEFAULT 0,
-    price            NUMBER(10,2) DEFAULT 0,
-    category         VARCHAR2(50)
+    med_id           NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,  
+    medicine_name     VARCHAR2(150) NOT NULL,
+    usage_description CLOB,
+    stock             NUMBER DEFAULT 0,
+    price             NUMBER(10,2) DEFAULT 0,
+    category          VARCHAR2(50)
 );
 
 -- 6. PRESCRIPTION_MEDICINES (junction table)
 CREATE TABLE PRESCRIPTION_MEDICINES (
-    Presc_id         NUMBER REFERENCES PRESCRIPTION(Presc_id),
-    Medicine_id      NUMBER REFERENCES MEDICINE(med_id),
-    Dosage           VARCHAR2(100),
-    Quantity         NUMBER,
-    Duration         VARCHAR2(50),
-    purchased        NUMBER(1) DEFAULT 0,
-    PRIMARY KEY (Presc_id, Medicine_id)
+    presc_id         NUMBER REFERENCES PRESCRIPTION(presc_id),
+    medicine_id      NUMBER REFERENCES MEDICINE(med_id),
+    dosage           VARCHAR2(100),
+    frequency        VARCHAR2(50),
+    presc_date       DATE DEFAULT SYSDATE,
+    patient_id       NUMBER REFERENCES PATIENT(patient_id),
+    doctor_id        NUMBER REFERENCES DOCTOR(doctor_id),
+    appt_id          NUMBER REFERENCES APPOINTMENT(appt_id),
+    PRIMARY KEY (presc_id, medicine_id)
 );
 
 -- 7. LAB_TEST table
@@ -79,16 +95,17 @@ CREATE TABLE LAB_TEST (
     status           VARCHAR2(30) DEFAULT 'Pending',
     result           VARCHAR2(1000),
     remarks          VARCHAR2(500),
-    result_date      DATE,
-    test_cost        NUMBER(10,2) DEFAULT 0
-
+    result_date      DATE
 );
 
 -- 8. WARD table
 CREATE TABLE WARD (
     ward_id          NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    ward_type        VARCHAR2(50),
-    total_beds       NUMBER DEFAULT 0
+    ward_name        VARCHAR2(50),
+    ward_type        VARCHAR2(20),
+    floor_no         NUMBER,
+    total_beds       NUMBER,
+    costperday       NUMBER(10,2) DEFAULT 0
 );
 
 -- 9. ADMISSION table
@@ -123,14 +140,26 @@ CREATE TABLE STAFF (
     phone            VARCHAR2(20)
 );
 
+-- 12. EMERGENCY_CONTACT table
+CREATE TABLE EMERGENCY_CONTACT (
+    contact_id       NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    contact_name     VARCHAR2(100),
+    relationship     VARCHAR2(50),
+    phone            VARCHAR2(15),
+    alt_phone        VARCHAR2(15),
+    patient_id       NUMBER REFERENCES PATIENT(patient_id)
+);
+
+
+
 -- ============================================================
 -- Seed Data (Optional)
 -- ============================================================
 
 -- Sample Medicines
-INSERT INTO MEDICINE (name, stock, price, category) VALUES ('Paracetamol', 100, 5, 'Painkiller');
-INSERT INTO MEDICINE (name, stock, price, category) VALUES ('Amoxicillin', 50, 15, 'Antibiotic');
-INSERT INTO MEDICINE (name, stock, price, category) VALUES ('Ibuprofen', 80, 8, 'Anti-inflammatory');
+INSERT INTO MEDICINE (medicine_name, stock, price, category) VALUES ('Paracetamol', 100, 5, 'Painkiller');
+INSERT INTO MEDICINE (medicine_name, stock, price, category) VALUES ('Amoxicillin', 50, 15, 'Antibiotic');
+INSERT INTO MEDICINE (medicine_name, stock, price, category) VALUES ('Ibuprofen', 80, 8, 'Anti-inflammatory');
 
 -- Sample Staff
 INSERT INTO STAFF (name, role, email, phone) VALUES ('Alice Admin', 'Admin', 'alice@hospital.com', '1111111111');

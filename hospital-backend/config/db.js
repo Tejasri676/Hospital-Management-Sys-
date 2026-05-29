@@ -1,10 +1,13 @@
+
+
 const oracledb = require('oracledb');
 
 
 const dbConfig = {
   user: process.env.DB_USER || "HIS_USER",
   password: process.env.DB_PASSWORD || "Kartik@2006",
-  connectString: process.env.DB_CONNECT_STRING || "10.213.3.94:1521/orclpdb"
+ connectString: process.env.DB_CONNECT_STRING || 
+`(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=127.0.0.1)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=orclpdb)))`
 };
 
 async function executeQuery(sql, binds = [], opts = {}) {

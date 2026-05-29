@@ -30,6 +30,16 @@ export default function Staff() {
     setView('table');
   };
 
+  const handleDelete = async (staffMember) => {
+    try {
+      await mockApi.removeStaff(staffMember.id);
+      toast.success('Staff member deleted');
+      await loadData();
+    } catch {
+      toast.error('Failed to delete staff member');
+    }
+  };
+
   const formFields = [
     { name: 'name', label: 'Display Name', required: true },
     { name: 'role', label: 'System Access Role', type: 'select', options: Object.values(ROLES), required: true },
@@ -77,13 +87,18 @@ export default function Staff() {
       ) : (
         <Table 
           columns={columns} 
-          data={staff.filter(s => s.name.toLowerCase().includes(search.toLowerCase()))} 
+          data={staff.filter(s => (s.name || '').toLowerCase().includes(search.toLowerCase()))} 
           searchQuery={search} 
           onSearchChange={setSearch}
           actions={isAdmin ? (row) => (
-            <button onClick={() => { setEditingData(row); setView('form'); }} className="bg-white rounded border border-gray-200 px-3 py-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 font-medium text-xs transition">
-              Modify Access
-            </button>
+            <div className="flex items-center justify-end gap-2">
+              <button onClick={() => { setEditingData(row); setView('form'); }} className="bg-white rounded border border-gray-200 px-3 py-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 font-medium text-xs transition">
+                Modify Access
+              </button>
+              <button onClick={() => handleDelete(row)} className="bg-white rounded border border-gray-200 px-3 py-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 font-medium text-xs transition">
+                Delete
+              </button>
+            </div>
           ) : undefined}
         />
       )}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FlaskConical, CheckCircle, Calendar, Activity } from 'lucide-react';
 import { mockApi } from '../../services/mockApi';
-import StatCard from '../common/StatCard';
+import StatCard from '../common/statcard';
 
 export default function LabDashboard() {
   const [stats, setStats] = useState({
@@ -13,14 +13,15 @@ export default function LabDashboard() {
 
   useEffect(() => {
     const loadStats = async () => {
-      const lab = await mockApi.getLabTests();
+      const lab = await Promise.allSettled([mockApi.getLabTests()]);
+      const labTests = lab[0].status === 'fulfilled' ? lab[0].value : [];
       const today = new Date().toISOString().split('T')[0];
 
       setStats({
-        pendingTests: lab.filter(l => l.status === 'Pending').length,
-        completedTestsToday: lab.filter(l => l.status === 'Completed' && l.date && l.date.startsWith(today)).length,
-        assignedToday: lab.filter(l => l.date && l.date.startsWith(today)).length,
-        recentActivity: lab.length
+        pendingTests: labTests.filter(item => item.status === 'Pending').length,
+        completedTestsToday: labTests.filter(item => item.status === 'Completed' && item.date && item.date.startsWith(today)).length,
+        assignedToday: labTests.filter(item => item.date && item.date.startsWith(today)).length,
+        recentActivity: labTests.length
       });
     };
 
